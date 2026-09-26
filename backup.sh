@@ -3,6 +3,8 @@
 set -eu
 service_name="my-ente"
 pass="/var/lib/ente/backup/backup_pass.txt"
+tar_verbose="-v"
+gpg_verbose="-vvv"
 
 today=$(date +%Y%m%d)
 
@@ -20,8 +22,8 @@ output_postgres_tar_xz="$(basename -- $postgres_dir)-$today.tar.xz"
 echo "output_minio_tar=$output_minio_tar"
 echo "output_postgres_tar_xz=$output_postgres_tar_xz"
 
-tar -cvJf $output_postgres_tar_xz $postgres_dir
-tar -cvf $output_minio_tar $minio_dir
+tar $tar_verbose -cJf $output_postgres_tar_xz -C $(dirname -- $postgres_dir) $(basename -- $postgres_dir)
+tar $tar_verbose -cf $output_minio_tar -C $(dirname -- $minio_dir) $(basename -- $minio_dir)
 
 output_minio_gpg="$output_minio_tar.gpg"
 output_postgres_gpg="$output_postgres_tar_xz.gpg"
@@ -30,17 +32,17 @@ echo "output_minio_gpg=$output_minio_gpg"
 echo "output_postgres_gpg=$output_postgres_gpg"
 
 echo "now gpg"
-gpg --symmetric --cipher-algo AES256 -z 0 --batch --passphrase-file $pass -o $output_postgres_gpg $output_postgres_tar_xz
-gpg --symmetric --cipher-algo AES256 -z 0 --batch --passphrase-file $pass -o $output_minio_gpg $output_minio_tar
+gpg $gpg_verbose --symmetric --cipher-algo AES256 -z 0 --batch --passphrase-file $pass -o $output_postgres_gpg $output_postgres_tar_xz
+gpg $gpg_verbose --symmetric --cipher-algo AES256 -z 0 --batch --passphrase-file $pass -o $output_minio_gpg $output_minio_tar
 
 echo "now test"
 
-gpg --decrypt --pinentry-mode loopback --batch --passphrase-file $pass $output_minio_gpg > /dev/null
-gpg --decrypt --pinentry-mode loopback --batch --passphrase-file $pass $output_postgres_gpg > /dev/null
+gpg $gpg_verbose --decrypt --pinentry-mode loopback --batch --passphrase-file $pass $output_minio_gpg > /dev/null
+gpg $gpg_verbose --decrypt --pinentry-mode loopback --batch --passphrase-file $pass $output_postgres_gpg > /dev/null
 
 echo "now tar docker"
 
-tar -cvJf $ente_docker_dir ${service_name}_docker.tar.xz
+tar $tar_verbose -cJf ${service_name}_docker.tar.xz -C $(dirname -- $ente_docker_dir) $(basename -- $ente_docker_dir)
 
 echo "chmod to readonly"
 
